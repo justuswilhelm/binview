@@ -80,24 +80,8 @@ def get_entropy_distribution(windows):
     return min(res), max(res)
 
 
-def main():
-    parser = ArgumentParser(description="Visualize Binary Files")
-    parser.add_argument('file', help="Either '-' for stdin or a file path.")
-    parser.add_argument(
-        '-l', '--line-length', default=24,
-        help='Specify how many bytes per line should be shown.',
-    )
-    args = parser.parse_args()
-    print(args)
-
-    if args.file == "-":
-        contents = stdin.buffer.read()
-    else:
-        with open(args.file, 'rb') as fd:
-            contents = fd.read()
-    assert contents, "Input was empty."
-
-    line_groups = group_by(contents, args.line_length)
+def hexdump(contents, line_length):
+    line_groups = group_by(contents, line_length)
     block_size = len(line_groups[0])
 
     min_entropy, max_entropy = get_entropy_distribution(line_groups)
@@ -111,6 +95,53 @@ def main():
             ascii=format_ascii(byte_line),
             entro=format_entropy(entropy(byte_line), min_entropy, max_entropy),
         ))
+
+
+def show_entropy(contents, line_length):
+    line_groups = group_by(contents, line_length)
+
+    min_entropy, max_entropy = get_entropy_distribution(line_groups)
+
+    for line_no, byte_line in enumerate(group_by(line_groups, 32)):
+        print("{:08x} ".format(line_no * 32 * line_length), end='')
+        for window in byte_line:
+            print(
+                format_colored(
+                    'X',
+                    *entropy_color(entropy(window), min_entropy, max_entropy)),
+                end='',
+            )
+        print()
+
+
+def get_contents(file):
+    if file == "-":
+        contents = stdin.buffer.read()
+    else:
+        with open(file, 'rb') as fd:
+            contents = fd.read()
+    assert contents, "Input was empty."
+    return contents
+
+
+def main():
+    parser = ArgumentParser(description="Visualize Binary Files")
+    parser.add_argument('file', help="Either '-' for stdin or a file path.")
+    parser.add_argument(
+        '-l', '--line-length', default=24, required=False,
+        help='Specify how many bytes per line should be shown.',
+    )
+    parser.add_argument(
+        '-e', '--entropy-only', default=False, action='store_true',
+        help='Show only entropy per byte line.', required=False,
+    )
+    args = parser.parse_args()
+
+    contents = get_contents(args.file)
+    if args.entropy_only:
+        show_entropy(contents, args.line_length)
+    else:
+        hexdump(contents, args.line_length)
 
 
 if __name__ == "__main__":
