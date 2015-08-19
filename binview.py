@@ -27,7 +27,7 @@ def group_by(contents, block_size=None):
     content_length = len(contents)
     block_size = block_size or sensible_line_length(content_length)
     length = int(ceil(float(content_length) / block_size))
-    result = [block(i) for i in range(length)]
+    result = (block(i) for i in range(length))
     return result
 
 
@@ -81,16 +81,15 @@ def get_entropy_distribution(windows):
 
 
 def hexdump(contents, line_length):
-    line_groups = group_by(contents, line_length)
-    block_size = len(line_groups[0])
+    line_groups = list(group_by(contents, line_length))
 
     min_entropy, max_entropy = get_entropy_distribution(line_groups)
 
     for line_no, byte_line in enumerate(line_groups):
-        if len(byte_line) < block_size:
-            byte_line = byte_line.ljust(block_size, b'\0')
+        if len(byte_line) < line_length:
+            byte_line = byte_line.ljust(line_length, b'\0')
         print("{position:08x} {bytes} {ascii} {entro}".format(
-            position=line_no * block_size,
+            position=line_no * line_length,
             bytes=format_bytes(byte_line),
             ascii=format_ascii(byte_line),
             entro=format_entropy(entropy(byte_line), min_entropy, max_entropy),
