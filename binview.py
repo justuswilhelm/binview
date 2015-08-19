@@ -2,15 +2,20 @@
 from argparse import ArgumentParser
 from collections import Counter
 from colorsys import hls_to_rgb
+from functools import lru_cache
 from math import ceil, log
+from shutil import get_terminal_size
 from string import printable, whitespace
 from sys import stdin
+
+from xtermcolor import colorize
+colorize = lru_cache(maxsize=2**12)(colorize)
 
 printable = set(printable) - set(whitespace)
 
 
-def sensible_line_length(input_len):
-    pows = [2 ** n for n in range(3, 4)]
+def sensible_block_size(input_len):
+    pows = range(0, 16, 4)
     for pow in reversed(pows):
         if input_len % pow == 0:
             return pow
@@ -25,7 +30,7 @@ def group_by(contents, block_size=None):
     """
     block = lambda i: contents[i * block_size: i * block_size + block_size]
     content_length = len(contents)
-    block_size = block_size or sensible_line_length(content_length)
+    block_size = block_size or sensible_block_size(content_length)
     length = int(ceil(float(content_length) / block_size))
     result = (block(i) for i in range(length))
     return result
@@ -50,29 +55,25 @@ def format_bytes(bytes):
 def format_byte(val):
     hue_map = lambda val: val / 255.0
     r, g, b = [int(v * 255) for v in hls_to_rgb(hue_map(val), 0.5, 1)]
-    return format_colored("{:02x}".format(val), r, g, b)
+    rgb = r << 16 | g << 8 | b
+    return colorize("{:02x}".format(val), rgb=rgb)
 
 
 def entropy_color(entropy, min_entropy, max_entropy):
     g = int((float(entropy - min_entropy) / (max_entropy - min_entropy)) * 255)
-    return (255 - g, g, 0)
+    return (255 - g) << 16 | g << 8
 
 
 def format_entropy(entropy, min_entropy, max_entropy):
     entropy_formatted = "Entropy: {}".format(round(entropy, 2))
-    return format_colored(
-        entropy_formatted, *entropy_color(entropy, min_entropy, max_entropy))
+    return colorize(entropy_formatted, rgb=entropy_color(
+        entropy, min_entropy, max_entropy))
 
 
 def format_ascii(bytes):
     return " ".join(group_by("".join(
         b if b in printable else '.' for b in
         map(chr, filter(lambda x: x is not None, bytes)))))
-
-
-def format_colored(s, r, g, b):
-    return "\x1b[38;2;{red};{green};{blue}m{s}\x1b[0m".format(
-        red=r, green=g, blue=b, s=s,)
 
 
 def get_entropy_distribution(windows):
@@ -104,12 +105,9 @@ def show_entropy(contents, line_length):
     for line_no, byte_line in enumerate(group_by(line_groups, 32)):
         print("{:08x} ".format(line_no * 32 * line_length), end='')
         for window in byte_line:
-            print(
-                format_colored(
-                    'X',
-                    *entropy_color(entropy(window), min_entropy, max_entropy)),
-                end='',
-            )
+            print(colorize(
+                'X', (entropy(window) << 16 | min_entropy << 8 | max_entropy)),
+                end='',)
         print()
 
 
@@ -123,11 +121,21 @@ def get_contents(file):
     return contents
 
 
+def get_default_width():
+    """Estimate the needed character width using the terminal width and round it
+    to the next candidate in candates list."""
+    candidates = range(8, 33, 8)
+    # 0.2 is a pure guess
+    width = get_terminal_size()[0] * 0.19
+    return min(candidates, key=lambda x: abs(x - width))
+
+
 def main():
     parser = ArgumentParser(description="Visualize Binary Files")
     parser.add_argument('file', help="Either '-' for stdin or a file path.")
     parser.add_argument(
-        '-l', '--line-length', default=24, required=False, type=int,
+        '-l', '--line-length', default=get_default_width(),
+        required=False, type=int,
         help='Specify how many bytes per line should be shown.',
     )
     parser.add_argument(
