@@ -128,7 +128,7 @@ def main():
     parser = ArgumentParser(description="Visualize Binary Files")
     parser.add_argument('file', help="Either '-' for stdin or a file path.")
     parser.add_argument(
-        '-l', '--line-length', default=24, required=False,
+        '-l', '--line-length', default=24, required=False, type=int,
         help='Specify how many bytes per line should be shown.',
     )
     parser.add_argument(
