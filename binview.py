@@ -109,7 +109,7 @@ def hexdump(contents, line_length):
 
 
 def show_entropy(contents, line_length):
-    line_groups = group_by(contents, line_length)
+    line_groups = list(group_by(contents, line_length))
 
     min_entropy, max_entropy = get_entropy_distribution(line_groups)
 
@@ -117,7 +117,7 @@ def show_entropy(contents, line_length):
         print("{:08x} ".format(line_no * 32 * line_length), end='')
         for window in byte_line:
             print(colorize(
-                'X', (entropy(window) << 16 | min_entropy << 8 | max_entropy)),
+                'X', entropy_color(entropy(window), min_entropy, max_entropy)),
                 end='',)
         print()
 
