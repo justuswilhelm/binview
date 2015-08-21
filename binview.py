@@ -88,17 +88,22 @@ def get_entropy_distribution(windows):
 
 
 def hexdump(contents, line_length):
+    def pad_byte_line(byte_line):
+        if len(byte_line) < line_length:
+            # TODO still not satisfactory since 0 still gets displayed...
+            return byte_line.ljust(line_length, b'\0')
+        else:
+            return byte_line
+
     line_groups = list(group_by(contents, line_length))
 
     min_entropy, max_entropy = get_entropy_distribution(line_groups)
 
     for line_no, byte_line in enumerate(line_groups):
-        if len(byte_line) < line_length:
-            byte_line = byte_line.ljust(line_length, b'\0')
         print("{position:08x} {bytes} {ascii} {entro}".format(
             position=line_no * line_length,
-            bytes=format_bytes(byte_line),
-            ascii=format_ascii(byte_line),
+            bytes=format_bytes(pad_byte_line(byte_line)),
+            ascii=format_ascii(pad_byte_line(byte_line)),
             entro=format_entropy(entropy(byte_line), min_entropy, max_entropy),
         ))
 
