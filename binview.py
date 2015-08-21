@@ -60,6 +60,12 @@ def format_byte(val):
 
 
 def entropy_color(entropy, min_entropy, max_entropy):
+    """
+    >>> entropy_color(1, 0, 1)
+    65280
+    >>> entropy_color(1, 1, 2)
+    16711680
+    """
     g = int((float(entropy - min_entropy) / (max_entropy - min_entropy)) * 255)
     return (255 - g) << 16 | g << 8
 
