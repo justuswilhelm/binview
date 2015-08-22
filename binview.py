@@ -9,10 +9,6 @@ from sys import stdin
 printable = set(printable) - set(whitespace)
 
 
-def sensible_block_size(input_len):
-    return input_len // 2
-
-
 def group_by(contents, block_size):
     r"""
     Collect data into fixed-length chunks or blocks.
@@ -78,10 +74,9 @@ def hexdump(contents, line_length):
 
 def show_entropy(contents, line_length):
     for line_no, byte_line in enumerate(group_by(contents, line_length)):
-        entropies = ('{:2.2f}'.format(entropy(window)) for window in byte_line)
-        print("{:08x} {}".format(
+        print("{:08x} {:2.2f}".format(
             line_no * 32 * line_length,
-            " ".join(entropies)),)
+            entropy(byte_line)))
 
 
 def show_histogram(contents):
@@ -90,7 +85,7 @@ def show_histogram(contents):
     print("Byte Count")
     for key, count in sorted(
             byte_count.items(), key=itemgetter(1), reverse=True):
-        print('0x{:02x} {:d}'.format(key, count))
+        print('{:02x} {:d}'.format(key, count))
 
 
 def get_contents(file):
