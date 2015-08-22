@@ -4,6 +4,7 @@ from collections import Counter
 from colorsys import hls_to_rgb
 from functools import lru_cache
 from math import ceil, log
+from operator import itemgetter
 from shutil import get_terminal_size
 from string import printable, whitespace
 from sys import stdin
@@ -15,11 +16,7 @@ printable = set(printable) - set(whitespace)
 
 
 def sensible_block_size(input_len):
-    pows = range(0, 16, 4)
-    for pow in reversed(pows):
-        if input_len % pow == 0:
-            return pow
-    return 16
+    return input_len // 2
 
 
 def group_by(contents, block_size=None):
@@ -53,10 +50,14 @@ def format_bytes(bytes):
 
 
 def format_byte(val):
+    return colorize("{:02x}".format(val), rgb=byte_color(val))
+
+
+@lru_cache()
+def byte_color(val):
     hue_map = lambda val: val / 255.0
     r, g, b = [int(v * 255) for v in hls_to_rgb(hue_map(val), 0.5, 1)]
-    rgb = r << 16 | g << 8 | b
-    return colorize("{:02x}".format(val), rgb=rgb)
+    return r << 16 | g << 8 | b
 
 
 def entropy_color(entropy, min_entropy, max_entropy):
@@ -122,6 +123,16 @@ def show_entropy(contents, line_length):
         print()
 
 
+def show_histogram(contents):
+    byte_count = Counter(contents)
+
+    print("Byte Count")
+    for key, count in sorted(
+            byte_count.items(), key=itemgetter(1), reverse=True):
+        print(colorize('0x{:02x} {:d}'.format(key, count),
+              rgb=byte_color(key)))
+
+
 def get_contents(file):
     if file == "-":
         contents = stdin.buffer.read()
@@ -150,14 +161,23 @@ def main():
         help='Specify how many bytes per line should be shown.',
     )
     parser.add_argument(
+        '-i', '--histogram', default=False, action='store_true',
+        help='Show histogram', required=False,
+    )
+    parser.add_argument(
         '-e', '--entropy-only', default=False, action='store_true',
         help='Show only entropy per byte line.', required=False,
     )
     args = parser.parse_args()
+    assert not all((
+        args.entropy_only, args.histogram)), "Can only select one mode"
 
     contents = get_contents(args.file)
+
     if args.entropy_only:
         show_entropy(contents, args.line_length)
+    elif args.histogram:
+        show_histogram(contents)
     else:
         hexdump(contents, args.line_length)
 
