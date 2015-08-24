@@ -85,7 +85,8 @@ def show_histogram(contents):
     print("Byte Count")
     for key, count in sorted(
             byte_count.items(), key=itemgetter(1), reverse=True):
-        print('{:02x} {:d}'.format(key, count))
+        print('{:02x} ({}) {:d}'.format(key, chr(key) if chr(key) in printable
+                                        else bytes([key]), count))
 
 
 def correlation(a, b, n, window=10):
