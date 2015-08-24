@@ -88,6 +88,50 @@ def show_histogram(contents):
         print('{:02x} {:d}'.format(key, count))
 
 
+def correlation(a, b, n, window=10):
+    """
+    Correlation method that just measures == and not *. Great for detecting
+    text similarity.
+
+    >>> correlation([1, 1], [1, 1], 0)
+    2
+    >>> correlation([1, 0], [0, 1], 0)
+    0
+    >>> correlation([1, 0], [0, 1], 1) # b -> [1, 0]
+    1
+    """
+    def shift():
+        return b[n:] + [None] * (len(a) - n)
+    assert len(a) == len(b)
+    a, b = list(a), list(b)
+
+    return sum(a == b for a, b in zip(a[:window], shift()[:window]))
+
+
+def show_autocorrelation(contents, short=False, no_peaks=5, max_n=100,
+                         preview=10):
+    corrs = [
+        correlation(contents, contents, n) for n in range(
+            min(len(contents), max_n))]
+    peaks = sorted(enumerate(corrs), reverse=True, key=itemgetter(1))
+    if len(peaks) > 1:
+        if short:
+            print(peaks[1][0])
+            return
+
+        print("Potential periodicity: {} bytes".format(peaks[1][0]))
+        print("Offset Content")
+        for pos, corr in peaks[:no_peaks]:
+            print("{:03x} {}... {}".format(
+                pos, contents[pos:pos+preview],
+                "(comparison)" if pos == 0 else ""))
+    else:
+        if short:
+            print(0)
+            exit(1)
+        print("No periodicity")
+
+
 def get_contents(file):
     if file == "-":
         return stdin.buffer.read()
@@ -111,9 +155,17 @@ def main():
         '-e', '--entropy-only', default=False, action='store_true',
         help='Show only entropy per byte line.', required=False,
     )
+    parser.add_argument(
+        '-a', '--autocorrelation', default=False, action='store_true',
+        help='Show autocorrelation',
+    )
+    parser.add_argument(
+        '-s', '--short-autocorrelation', default=False, action='store_true',
+        help='Output only the first candidate for periodicty',
+    )
     args = parser.parse_args()
-    assert not all((
-        args.entropy_only, args.histogram)), "Can only select one mode"
+    assert sum((args.entropy_only, args.histogram, args.autocorrelation)) == 1, """
+Can only select one mode"""
 
     contents = get_contents(args.file)
 
@@ -121,6 +173,8 @@ def main():
         show_entropy(contents, args.line_length)
     elif args.histogram:
         show_histogram(contents)
+    elif args.autocorrelation:
+        show_autocorrelation(contents, short=args.short_autocorrelation)
     else:
         hexdump(contents, args.line_length)
 
