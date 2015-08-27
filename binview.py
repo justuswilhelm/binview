@@ -165,7 +165,7 @@ def main():
         help='Output only the first candidate for periodicty',
     )
     args = parser.parse_args()
-    assert sum((args.entropy_only, args.histogram, args.autocorrelation)) == 1, """
+    assert sum((args.entropy_only, args.histogram, args.autocorrelation)) in [0, 1], """
 Can only select one mode"""
 
     contents = get_contents(args.file)
